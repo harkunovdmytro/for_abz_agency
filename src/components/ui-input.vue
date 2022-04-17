@@ -3,10 +3,10 @@
     <div class="input-field">
       <input :class="inputClasses"
              type="text"
-             v-model="value"
+             v-model.trim="value"
              @keypress="passValue"
              @focusin="isFocused = true"
-             @focusout="isFocused = false"
+             @focusout="isFocused = false; firstTouchDone = true"
       >
 
       <template v-if="placeholder">
@@ -19,7 +19,7 @@
         <small class="input-assist">{{ small }}</small>
       </div>
     </template>
-    <template v-if="error">
+    <template v-if="firstTouchDone&&error">
       <div>
         <small :class="enterError">{{ error }}</small>
       </div>
@@ -40,6 +40,7 @@ export default {
     return {
       value: '',
       isFocused: false,
+      firstTouchDone: false
     }
   },
   computed: {
@@ -48,12 +49,12 @@ export default {
 
       if (this.hasValue) inputClass += 'not-empty '
       if (this.isFocused) inputClass += 'focused '
-      if (this.error) inputClass += 'error '
+      if (this.firstTouchDone&&this.error) inputClass += 'error '
       this.$emit('value', this.value)
       return inputClass
     },
     enterError() {
-      if (this.error) return 'error'
+      if (this.firstTouchDone&&this.error) return 'error'
       return ''
     },
     hasValue() {
@@ -62,7 +63,9 @@ export default {
     }
   },
   methods: {
-
+    passvalue() {
+      this.$emit('value', this.value)
+    }
   }
 }
 </script>
@@ -100,12 +103,15 @@ export default {
       top: 0 !important;
     }
   }
+
   span.error {
     color: $error-color !important;
   }
+
   input.error {
     border-color: $error-color !important;
   }
+
   .label {
     font-size: 16px;
     transition: 0.3s;
@@ -118,6 +124,7 @@ export default {
     color: #7E7E7E;
   }
 }
+
 small.error {
   color: $error-color;
 }

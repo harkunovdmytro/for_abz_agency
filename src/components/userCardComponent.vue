@@ -1,7 +1,16 @@
 <template>
   <div class="user-card">
     <div>
-      <img :src="user.photo?user.photo:'../assets/photo-cover.svg'" alt="">
+      <template
+          v-if="photo"
+      >
+        <img :src="user.photo" :alt="user.name + '\'s photo'">
+
+      </template>
+      <template v-else
+      >
+        <img src="../assets/photo-cover.svg" :alt="'user '+user.name+ ' don\'t have any photo'">
+      </template>
     </div>
     <div class="user-card-name">{{ checkLength(user.name) }}</div>
     <div>
@@ -17,6 +26,14 @@ export default {
   name: "userCardComponent",
   props: {
     user: {}
+  },
+  computed: {
+    photo() {
+      if (!this.user.photo.includes('placeholder'))
+        return true
+      else
+        return false
+    }
   },
   methods: {
     checkLength(text = '') {
@@ -45,6 +62,8 @@ export default {
 
   img {
     border-radius: 50%;
+    max-height: 50px;
+    max-width: 50px;
   }
 }
 </style>

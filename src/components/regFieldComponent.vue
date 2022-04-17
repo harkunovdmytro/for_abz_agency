@@ -2,7 +2,7 @@
   <div class="reg-field">
     <template v-if="!signUpDone">
 
-      <form @submit.prevent="signUpDone = handleForm">
+      <form @submit.prevent="handleForm">
         <h1>
           Working with POST request
         </h1>
@@ -10,45 +10,44 @@
           <ui-input
               placeholder="Your name"
               @value="getName"
-              :error="positionIDValid?nameValid:''"
+              :error="nameValid"
           />
           <ui-input
               placeholder="Email"
               @value="getEmail"
-              :error="positionIDValid?emailValid:''"
+              :error="emailValid"
           />
           <ui-input
               placeholder="Phone"
               small="+38 (XXX) XXX - XX - XX"
               @value="getPhone"
-              :error="positionIDValid?phoneValid:''"
+              :error="phoneValid"
           />
         </div>
         <div class="radios-container">
           <p>Select your position</p>
           <div class="radios">
-            <label>
-              <input type="radio" v-model="position_id" value="1">
-              <span>Frontend developer</span>
-            </label>
-            <label>
-              <input type="radio" v-model="position_id" value="2">
-              <span>Backend developer</span>
-            </label>
-            <label>
-              <input type="radio" v-model="position_id" value="3">
-              <span>Designer</span>
-            </label>
-            <label>
-              <input type="radio" v-model="position_id" value="4">
-              <span>QA</span>
-            </label>
+            <template
+                v-for="position in positions"
+                :key="position.id"
+            >
+              <label :for="`position`+position.id" tabindex="0">
+                <input type="radio"
+                       tabindex="-1"
+                       :id="`position`+position.id"
+                       :value="position.id"
+                       v-model="position_id"
+                >
+                <span>{{ position.name }}</span>
+              </label>
+            </template>
           </div>
           <div>
             <div>
               <ui-file
                   @filesGetted="previewFiles"
                   :label="file?file.name:'Upload your photo'"
+                  :error="checking?fileValid:''"
               />
             </div>
           </div>
@@ -57,7 +56,6 @@
                 title="Sign up"
                 :disabled="!isFormValid"
                 @btn-clicked="nothing"
-
             />
           </div>
         </div>
@@ -85,62 +83,112 @@ import UiBtn from "@/components/ui-btn";
 export default {
   name: "regFieldComponent",
   components: {UiFile, uiInput, UiBtn},
+  props: {
+    signUpDone: {type: Boolean, default: false}
+  },
   data: function () {
     return {
       name: '',
       email: '',
       phone: '',
       position_id: null,
-      token: '',
-      file: {},
-      fails: [],
-      signUpDone: false
+      file: null,
+      signupResult: false,
+      positionsArray: [],
+      checking: false
     }
   },
   computed: {
-    isFormValid() {
+    areFieldsFull() {
       return (
-          this.nameValid == ''
-          && this.emailValid == ''
-          && this.phoneValid == ''
-          && this.positionIDValid
-          && this.fileValid)
+          this.name != ''
+          && this.email != ''
+          && this.phone != ''
+          && this.position_id != null
+          && Boolean(this.file)
+      )
+    },
+    isFormValid() {
+      if (this.checking) {
+        return Boolean(
+            Boolean(!(this.nameValid))
+            && Boolean(!this.emailValid)
+            && Boolean(!this.phoneValid)
+            && this.positionIDValid
+            && Boolean(!this.fileValid)
+        )
+      } else return false
     },
     nameValid() {
-      if (this.name.length <= 2) {
-        return 'User name is too short.'
-      } else if (this.name.length > 60) {
-        return 'User name is too long.'
-      } else return ''
+      if (this.name) {
+        if (this.name.length <= 2) {
+          return 'User name is too short.'
+        } else if (this.name.length > 60) {
+          return 'User name is too long.'
+        } else return ''
+      } else if (this.name == '') {
+        return 'Field is empty'
+      } else return 'something wrong'
     },
     emailValid() {
-      if (this.email.indexOf('@') < this.email.indexOf('.') && this.email.includes('@') && this.email.includes('.')) return ''
-      else return 'Email is not valid.'
+      if (this.email && this.email.toLowerCase()
+          .match(
+              /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+          )) {
+
+        return ''
+      } else return 'Wrong email'
     },
     phoneValid() {
-      if (this.phone.indexOf('+38') !== 0) {
-        return 'Write "+38" at the beginning.'
-      } else if (this.phone.length < 13) {
-        return 'Phone number is too short.'
-      } else if (this.phone.length > 13) {
-        return 'Phone number is too long.'
-      } else {
-        return ''
-      }
+      if (this.phone) {
+        if (this.phone.indexOf('+380') !== 0) {
+          return 'Write "+380" at the beginning.'
+        } else if (this.phone.length < 13) {
+          return 'Phone number is too short.'
+        } else if (this.phone.length > 13) {
+          return 'Phone number is too long.'
+        } else {
+          return ''
+        }
+      } else if (this.phone == '') return 'Field is empty.'
+      else return 'Something wrong'
     },
     positionIDValid() {
       return this.position_id != null
     },
     fileValid() {
-      return this.file.name ? true : false
+      if (this.file) {
+        if (this.file.name) {
+          if (this.file.name.includes('.jpg') || this.file.name.includes('.jpeg')) {
+            return ''
+          }
+          return 'User photo should be jpg/jpeg image.'
+        }
+      } else {
+        return 'File was not added.'
+      }
+      return 'Something is wrong'
     },
+    positions() {
+      return this.positionsArray
+    }
   },
   mounted() {
-    this.getToken()
+    this.getPositions(this.positionsArray)
   },
   methods: {
-    changeSignUpDone() {
-      this.signUpDone = true
+    async getPositions(array) {
+      await fetch('https://frontend-test-assignment-api.abz.agency/api/v1/positions')
+          .then(function (response) {
+            return response.json();
+          }).then(function (data) {
+            if (data.success) {
+              array.length = 0
+              for (let i = 0; i < data.positions.length; i++) {
+                array.push(data.positions[i])
+              }
+            }
+          })
     },
     previewFiles(files) {
       this.file = {}
@@ -165,44 +213,72 @@ export default {
             return response.json();
           })
           .then((data) => {
-            this.token = data.token
+            // this.token = data.token
+            return data.token
           });
 
     },
-    handleForm() {
+    async handleForm() {
       if (this.isFormValid) {
-        let formData = new FormData(); // file from input type='file'
+
+        const token = await this.getToken()
+
+        let formData = new FormData();
 
         formData.append('position_id', this.position_id);
         formData.append('name', this.name);
         formData.append('email', this.email);
         formData.append('phone', this.phone);
         formData.append('photo', this.file);
-        console.log(formData)
-        return fetch('https://frontend-test-assignment-api.abz.agency/api/v1/users', {
-          method: 'POST', body: formData, headers: {
-            'Token': this.token, // get token with GET api/v1/token method
+
+        // fetch begin
+
+        const fetchResult = await fetch('https://frontend-test-assignment-api.abz.agency/api/v1/users', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Token': token, // get token with GET api/v1/token method
           },
+        }).then(function (response) {
+          console.log('response')
+          return response.json();
+        }).then(function (data) {
+          if (data.success) {
+            console.log('data.success: ' + data.success);
+            return data
+          } else {
+            alert('input error :(')
+            console.log(data)
+            return data
+          }
+        }).catch(function (error) {
+          console.log(error)
         })
-            .then(function (response) {
-              return response.json();
-            })
-            .then(function (data) {
-              if (data.success) {
-                console.log('data.success: ' + data.success);
-              } else {
-                alert('input error :(')
-                console.log(data)
-              }
-            })
-            .catch(function (error) {
-              console.log(error)
-            });
+
+        // fetch end
+
+        if (await fetchResult.success) {
+
+          console.log('success!!!')
+          this.$emit('regSuccessful')
+        }
+        console.log(fetchResult)
+        return fetchResult;
       }
     },
     nothing() {
       console.log('nothing')
     }
+  },
+  watch: {
+    areFieldsFull(value) {
+        console.log('isNoEmptyFields')
+      if (value) {
+        console.log('MUST BE TRUE')
+        this.checking = true
+      }
+    }
+
   }
 }
 </script>
@@ -302,6 +378,13 @@ export default {
         margin-top: 7px;
         cursor: pointer;
       }
+    }
+  }
+
+  .signUpDone {
+    img {
+      max-width: 100%;
+      height: auto;
     }
   }
 }
